@@ -1,0 +1,15 @@
+venv/
+.venv/
+
+__pycache__/
+*.pyc
+
+.env
+
+uploads/*.pdf
+
+.pytest_cache/
+
+.vscode/
+.idea/
+.vercel

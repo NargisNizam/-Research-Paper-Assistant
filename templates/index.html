@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Research Paper Assistant
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='style.css') }}"
+    >
+
+</head>
+
+
+<body>
+
+
+<div class="background-animation">
+
+    <div class="blob blob-one"></div>
+
+    <div class="blob blob-two"></div>
+
+    <div class="blob blob-three"></div>
+
+</div>
+
+
+<div class="app">
+
+
+<header class="header">
+
+
+<div>
+
+<p class="eyebrow">
+
+    RAG • LANGCHAIN • LANGGRAPH • LANGSMITH
+
+</p>
+
+
+<h1>
+
+    Research Paper Assistant
+
+</h1>
+
+
+<p class="subtitle">
+
+    Upload research papers and ask
+    intelligent questions using only
+    your documents.
+
+</p>
+
+</div>
+
+
+<button
+    id="clearBtn"
+    class="ghost-btn"
+>
+
+    Clear Documents
+
+</button>
+
+
+</header>
+
+
+
+<main class="layout">
+
+
+
+<aside class="sidebar">
+
+
+
+<section class="card upload-card">
+
+
+<h2>
+
+    Upload Papers
+
+</h2>
+
+
+<p class="muted">
+
+    Upload one or multiple research
+    papers in PDF format.
+
+</p>
+
+
+
+<label
+    class="dropzone"
+    for="fileInput"
+>
+
+
+<span class="upload-icon">
+
+    ↑
+
+</span>
+
+
+<strong>
+
+    Choose PDF files
+
+</strong>
+
+
+<small>
+
+    Click here to browse
+
+</small>
+
+
+</label>
+
+
+<input
+    id="fileInput"
+    type="file"
+    accept=".pdf,application/pdf"
+    multiple
+>
+
+
+
+<button
+    id="uploadBtn"
+    class="primary-btn"
+>
+
+    Upload & Index
+
+</button>
+
+
+<p
+    id="uploadStatus"
+    class="status"
+></p>
+
+
+</section>
+
+
+
+<section class="card documents-card">
+
+
+<div class="section-title">
+
+
+<h2>
+
+    Uploaded Documents
+
+</h2>
+
+
+<span
+    id="chunkCount"
+    class="badge"
+>
+
+    0 chunks
+
+</span>
+
+
+</div>
+
+
+
+<ul
+    id="documentList"
+    class="document-list"
+>
+
+<li class="empty">
+
+    No documents uploaded.
+
+</li>
+
+</ul>
+
+
+</section>
+
+
+
+</aside>
+
+
+
+<section class="chat card">
+
+
+
+<div
+    id="messages"
+    class="messages"
+>
+
+
+<div class="welcome">
+
+
+<div class="robot">
+
+    RAG
+
+</div>
+
+
+<h2>
+
+    Ask about your papers
+
+</h2>
+
+
+<p>
+
+    Upload a research paper and ask
+    questions about its methodology,
+    datasets, findings and limitations.
+
+</p>
+
+
+<div class="example-questions">
+
+<button
+    onclick="useQuestion('Summarize this paper.')"
+>
+
+    Summarize this paper
+
+</button>
+
+
+<button
+    onclick="useQuestion('What methodology is used?')"
+>
+
+    Methodology
+
+</button>
+
+
+<button
+    onclick="useQuestion('What are the key findings?')"
+>
+
+    Key findings
+
+</button>
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+<form
+    id="chatForm"
+    class="composer"
+>
+
+
+<textarea
+    id="question"
+    rows="2"
+    placeholder="Ask a question about your uploaded papers..."
+></textarea>
+
+
+<button
+    id="sendBtn"
+    class="primary-btn"
+    type="submit"
+>
+
+    Ask
+
+</button>
+
+
+</form>
+
+
+<p class="hint">
+
+    Answers are generated only from
+    retrieved content from your PDFs.
+
+</p>
+
+
+</section>
+
+
+</main>
+
+
+</div>
+
+
+
+<script>
+
+
+const fileInput =
+    document.getElementById(
+        "fileInput"
+    );
+
+
+const uploadBtn =
+    document.getElementById(
+        "uploadBtn"
+    );
+
+
+const uploadStatus =
+    document.getElementById(
+        "uploadStatus"
+    );
+
+
+const documentList =
+    document.getElementById(
+        "documentList"
+    );
+
+
+const chunkCount =
+    document.getElementById(
+        "chunkCount"
+    );
+
+
+const clearBtn =
+    document.getElementById(
+        "clearBtn"
+    );
+
+
+const chatForm =
+    document.getElementById(
+        "chatForm"
+    );
+
+
+const questionInput =
+    document.getElementById(
+        "question"
+    );
+
+
+const messages =
+    document.getElementById(
+        "messages"
+    );
+
+
+const sendBtn =
+    document.getElementById(
+        "sendBtn"
+    );
+
+
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.textContent = text;
+
+    return div.innerHTML;
+}
+
+
+
+function useQuestion(question) {
+
+    questionInput.value =
+        question;
+
+    questionInput.focus();
+
+}
+
+
+
+function renderDocuments(data) {
+
+    documentList.innerHTML = "";
+
+    chunkCount.textContent =
+        `${data.chunks} chunks`;
+
+
+    if (
+        !data.documents ||
+        data.documents.length === 0
+    ) {
+
+        documentList.innerHTML =
+            '<li class="empty">No documents uploaded.</li>';
+
+        return;
+    }
+
+
+    [...data.documents]
+        .sort()
+        .forEach(name => {
+
+            const li =
+                document.createElement(
+                    "li"
+                );
+
+            li.innerHTML = `
+
+                <span class="pdf-dot">
+                    PDF
+                </span>
+
+                <span>
+                    ${escapeHtml(name)}
+                </span>
+
+            `;
+
+            documentList.appendChild(
+                li
+            );
+
+        });
+
+}
+
+
+
+async function refreshDocuments() {
+
+    const response =
+        await fetch(
+            "/api/documents"
+        );
+
+    const data =
+        await response.json();
+
+    renderDocuments(data);
+
+}
+
+
+
+function addMessage(
+    type,
+    content,
+    sources = []
+) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.className =
+        `message ${type}`;
+
+
+    let sourceHTML = "";
+
+
+    if (sources.length) {
+
+        sourceHTML = `
+
+            <div class="sources">
+
+                <strong>
+                    Sources
+                </strong>
+
+                ${sources.map(source => `
+
+                    <span
+                        class="source-pill"
+                    >
+
+                        ${escapeHtml(
+                            source.document
+                        )}
+
+                        • Page
+
+                        ${source.page}
+
+                    </span>
+
+                `).join("")}
+
+            </div>
+
+        `;
+
+    }
+
+
+    div.innerHTML = `
+
+        <div class="bubble">
+
+            ${escapeHtml(
+                content
+            ).replace(
+                /\n/g,
+                "<br>"
+            )}
+
+        </div>
+
+        ${sourceHTML}
+
+    `;
+
+
+    messages.appendChild(
+        div
+    );
+
+
+    messages.scrollTop =
+        messages.scrollHeight;
+
+}
+
+
+
+uploadBtn.addEventListener(
+    "click",
+    async () => {
+
+        if (
+            !fileInput.files.length
+        ) {
+
+            uploadStatus.textContent =
+                "Please select at least one PDF.";
+
+            return;
+        }
+
+
+        const formData =
+            new FormData();
+
+
+        [
+            ...fileInput.files
+        ].forEach(file => {
+
+            formData.append(
+                "files",
+                file
+            );
+
+        });
+
+
+        uploadBtn.disabled = true;
+
+        uploadStatus.textContent =
+            "Uploading and indexing...";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/upload",
+                    {
+
+                        method: "POST",
+
+                        body: formData
+
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                uploadStatus.textContent =
+                    data.errors
+                        ? data.errors.join(" ")
+                        : (
+                            data.error ||
+                            "Upload failed."
+                        );
+
+                return;
+            }
+
+
+            uploadStatus.textContent =
+                `${data.uploaded.length} document(s) indexed successfully.`;
+
+
+            if (
+                data.errors &&
+                data.errors.length
+            ) {
+
+                uploadStatus.textContent +=
+                    " " +
+                    data.errors.join(" ");
+
+            }
+
+
+            fileInput.value = "";
+
+
+            renderDocuments(
+                data
+            );
+
+
+        }
+
+        catch (error) {
+
+            uploadStatus.textContent =
+                "Could not connect to the server.";
+
+        }
+
+        finally {
+
+            uploadBtn.disabled =
+                false;
+
+        }
+
+    }
+);
+
+
+
+chatForm.addEventListener(
+    "submit",
+    async event => {
+
+        event.preventDefault();
+
+
+        const question =
+            questionInput.value.trim();
+
+
+        if (!question) {
+
+            addMessage(
+                "assistant",
+                "Please enter a question."
+            );
+
+            return;
+        }
+
+
+        addMessage(
+            "user",
+            question
+        );
+
+
+        questionInput.value = "";
+
+
+        sendBtn.disabled = true;
+
+        sendBtn.textContent =
+            "Thinking...";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/chat",
+                    {
+
+                        method: "POST",
+
+                        headers: {
+
+                            "Content-Type":
+                            "application/json"
+
+                        },
+
+                        body: JSON.stringify({
+
+                            question:
+                            question
+
+                        })
+
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            addMessage(
+
+                "assistant",
+
+                data.answer ||
+                "No answer returned.",
+
+                data.sources ||
+                []
+
+            );
+
+        }
+
+        catch (error) {
+
+            addMessage(
+                "assistant",
+                "Could not connect to the server."
+            );
+
+        }
+
+        finally {
+
+            sendBtn.disabled =
+                false;
+
+            sendBtn.textContent =
+                "Ask";
+
+        }
+
+    }
+);
+
+
+
+clearBtn.addEventListener(
+    "click",
+    async () => {
+
+        if (
+            !confirm(
+                "Clear all uploaded documents?"
+            )
+        ) return;
+
+
+        await fetch(
+            "/api/documents",
+            {
+                method: "DELETE"
+            }
+        );
+
+
+        messages.innerHTML = `
+
+            <div class="welcome">
+
+                <div class="robot">
+                    RAG
+                </div>
+
+                <h2>
+                    Ask about your papers
+                </h2>
+
+                <p>
+                    Upload a PDF and
+                    start asking questions.
+                </p>
+
+            </div>
+
+        `;
+
+
+        uploadStatus.textContent =
+            "All documents cleared.";
+
+
+        await refreshDocuments();
+
+    }
+);
+
+
+
+questionInput.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+            chatForm.requestSubmit();
+
+        }
+
+    }
+);
+
+
+
+refreshDocuments();
+
+
+</script>
+
+
+</body>
+
+</html>
